@@ -1,7 +1,8 @@
 const express = require('express');
-const router = express.Router();
+const router = express.Router(); // ✅ USA express.Router() NO el paquete 'router'
 const pool = require('../database');
 const { authenticateToken } = require('../middleware/auth');
+const qr = require('qr-image');
 
 // HU4: Registrar nuevo envío
 router.post('/register', async (req, res) => {
@@ -53,7 +54,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// Obtener todos los envíos - CORREGIDO
+// Obtener todos los envíos
 router.get('/', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -72,7 +73,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Obtener envío por código de seguimiento - CORREGIDO
+// Obtener envío por código de seguimiento
 router.get('/tracking/:tracking_code', async (req, res) => {
     try {
         const { tracking_code } = req.params;
@@ -121,7 +122,7 @@ router.get('/tracking/:tracking_code', async (req, res) => {
     }
 });
 
-// HU6: Actualizar estado del envío (para operarios) - CORREGIDO
+// HU6: Actualizar estado del envío (para operarios)
 router.put('/:id/status', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -166,14 +167,13 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
             });
         }
 
-        // QUERY CORREGIDO - sin updated_at
         const result = await pool.query(
-    `UPDATE packages 
-     SET status = $1 
-     WHERE id = $2 
-     RETURNING id, tracking_code, status`,
-    [status, id]
-);
+            `UPDATE packages 
+             SET status = $1 
+             WHERE id = $2 
+             RETURNING id, tracking_code, status`,
+            [status, id]
+        );
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Envío no encontrado' });
@@ -190,7 +190,7 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
     }
 });
 
-// HU6: Obtener envío por ID (para edición) - CORREGIDO
+// HU6: Obtener envío por ID (para edición)
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -216,7 +216,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// HU6: Actualizar información del envío - CORREGIDO
+// HU6: Actualizar información del envío
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -273,7 +273,7 @@ router.put('/:id', async (req, res) => {
             paramCount++;
         }
 
-        values.push(id); // ID siempre al final
+        values.push(id);
 
         const query = `
             UPDATE packages 
@@ -301,7 +301,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-// HU7: Asignar mensajero a envío - CORREGIDO
+// HU7: Asignar mensajero a envío
 router.put('/:id/assign-messenger', async (req, res) => {
     try {
         const { id } = req.params;
@@ -325,7 +325,6 @@ router.put('/:id/assign-messenger', async (req, res) => {
             });
         }
 
-        // QUERY CORREGIDO - sin updated_at
         const result = await pool.query(
             `UPDATE packages 
              SET assigned_messenger_id = $1 
@@ -349,9 +348,7 @@ router.put('/:id/assign-messenger', async (req, res) => {
     }
 });
 
-// ===== NUEVAS RUTAS PARA PANEL POR ROLES =====
-
-// Obtener entregas del mensajero actual - CORREGIDO
+// Obtener entregas del mensajero actual
 router.get('/messenger/my-deliveries', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -393,25 +390,16 @@ router.get('/client/my-packages', authenticateToken, async (req, res) => {
   }
 });
 
-// Función auxiliar para calcular fecha estimada de entrega
-function calculateEstimatedDelivery(createdAt) {
-    const deliveryDate = new Date(createdAt);
-    deliveryDate.setDate(deliveryDate.getDate() + 3); // +3 días
-    return deliveryDate.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-}
-const qr = require('qr-image');
-const { Readable } = require('stream');
-
 // HU8: Generar código QR para envío
 router.get('/:id/qr', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Obtener información del envío
-    const result = await pool.query(`
-      SELECT tracking_code, sender_name, recipient_name, delivery_address, status
-      FROM packages WHERE id = $1
-    `, [id]);
+    const result = await pool.query(
+      `SELECT tracking_code, sender_name, recipient_name, delivery_address, status
+       FROM packages WHERE id = $1`,
+      [id]
+    );
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Envío no encontrado' });
@@ -419,7 +407,6 @@ router.get('/:id/qr', async (req, res) => {
     
     const package = result.rows[0];
     
-    // Crear datos para el QR
     const qrData = {
       tracking_code: package.tracking_code,
       sender: package.sender_name,
@@ -428,7 +415,6 @@ router.get('/:id/qr', async (req, res) => {
       tracking_url: `http://localhost:3000/tracking/${package.tracking_code}`
     };
     
-    // Generar QR
     const qr_png = qr.image(JSON.stringify(qrData), { type: 'png' });
     
     res.setHeader('Content-Type', 'image/png');
@@ -439,5 +425,12 @@ router.get('/:id/qr', async (req, res) => {
     res.status(500).json({ error: 'Error generando código QR' });
   }
 });
+
+// Función auxiliar para calcular fecha estimada de entrega
+function calculateEstimatedDelivery(createdAt) {
+    const deliveryDate = new Date(createdAt);
+    deliveryDate.setDate(deliveryDate.getDate() + 3);
+    return deliveryDate.toISOString().split('T')[0];
+}
 
 module.exports = router;

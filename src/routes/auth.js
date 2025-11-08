@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../database');
 const router = express.Router();
 
-// HU3: Inicio de sesión
+// HU3: Inicio de sesión - MODIFICADO para verificación de email
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -19,7 +19,7 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Buscar usuario por email
+        // Buscar usuario por email - INCLUYENDO is_email_verified
         const userResult = await pool.query(
             'SELECT * FROM users WHERE email = $1',
             [email]
@@ -37,28 +37,20 @@ router.post('/login', async (req, res) => {
         const user = userResult.rows[0];
         console.log('Usuario encontrado:', user.email);
         console.log('Password_hash en BD:', user.password_hash);
-        console.log('Document_number:', user.document_number);
+        console.log('Email verificado:', user.is_email_verified); // ✅ NUEVO
 
         // Verificar contraseña
         let passwordValid = false;
         
         if (user.password_hash) {
             console.log('🔍 Comparando con bcrypt...');
-            console.log('Password input:', password);
-            console.log('Hash en BD:', user.password_hash);
-            
             passwordValid = await bcrypt.compare(password, user.password_hash);
             console.log('Resultado bcrypt.compare:', passwordValid);
-            
-            // Debug adicional - verificar el hash manualmente
-            const testHash = await bcrypt.hash(password, 10);
-            console.log('Hash generado con input:', testHash);
-            console.log('¿Coinciden los hashes?', user.password_hash === testHash);
             
         } else if (user.document_number) {
             console.log('📄 Usando document_number como fallback');
             passwordValid = password === user.document_number;
-            console.log('Document comparison:', password, '===', user.document_number, '=', passwordValid);
+            console.log('Document comparison:', passwordValid);
         }
 
         console.log('¿Password válida?', passwordValid);
@@ -70,9 +62,19 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        console.log('✅ Login exitoso para:', user.email);
+        // ✅ NUEVA LÓGICA: Verificar si el email está confirmado
+        if (!user.is_email_verified) {
+            console.log('⚠️ Usuario no verificado, requiere token:', user.email);
+            return res.status(403).json({
+                error: 'Email no verificado',
+                requires_token: true, // ✅ Frontend sabe que debe pedir token
+                message: 'Para acceder, verifica tu email o usa un token temporal'
+            });
+        }
 
-        // Generar token JWT
+        console.log('✅ Login exitoso para usuario VERIFICADO:', user.email);
+
+        // Generar token JWT para usuario VERIFICADO
         const token = jwt.sign(
             { 
                 userId: user.id, 
@@ -94,7 +96,8 @@ router.post('/login', async (req, res) => {
                 last_name: user.last_name,
                 email: user.email,
                 role: user.role
-            }
+            },
+            requires_token: false // ✅ Usuario verificado, no necesita token
         });
 
     } catch (error) {
