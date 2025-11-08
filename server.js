@@ -29,16 +29,20 @@ app.post("/api/verify-token", (req, res) => {
   const { email, token } = req.body;
   const record = tokens[email];
 
-  if (!record) return res.status(400).json({ error: "No se encontró token para este correo" });
+  if (!record)
+    return res
+      .status(400)
+      .json({ error: "No se encontró token para este correo" });
   if (record.expires < Date.now()) {
     delete tokens[email];
     return res.status(400).json({ error: "Token caducado" });
   }
-  if (record.token !== token) return res.status(400).json({ error: "Código inválido" });
+  if (record.token !== token)
+    return res.status(400).json({ error: "Código inválido" });
 
   delete tokens[email];
   res.json({ message: "Acceso concedido ✅" });
 });
 
-const PORT = 3001;
-app.listen(PORT, () => console.log(`🚀 Servidor de tokens activo en puerto ${PORT}`));
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`🚀 Servidor activo en puerto ${PORT}`));
