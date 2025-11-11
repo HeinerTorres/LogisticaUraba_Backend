@@ -2,8 +2,8 @@ import express from "express";
 import cors from "cors";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import userRoutes from "./src/routes/users.js";
-import pool from "./src/services/database.js";
+import userRoutes from "./routes/users.js";
+import pool from "./services/database.js";
 
 dotenv.config();
 
@@ -57,5 +57,6 @@ app.get("/", (req, res) => {
   res.send("🚀 Backend Logística Urabá activo y conectado");
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor activo en puerto ${PORT}`));
+// Puerto
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ Servidor corriendo en puerto ${PORT}`));
