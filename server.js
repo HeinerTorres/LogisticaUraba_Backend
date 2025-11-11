@@ -2,8 +2,8 @@ import express from "express";
 import cors from "cors";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import userRoutes from "./src/routes/users"; // importa tus rutas de usuario
-import pool from "./src/database.js"; // importa la conexión a la DB
+import userRoutes from "./routes/users.js";
+import pool from "./services/database.js";
 
 dotenv.config();
 
